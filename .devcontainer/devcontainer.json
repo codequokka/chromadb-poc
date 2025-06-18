@@ -1,0 +1,40 @@
+{
+    "name": "chromadb-poc-env",
+    "dockerComposeFile": "../compose.yml",
+    "service": "workspace",
+    "workspaceFolder": "/workspace",
+    "forwardPorts": [
+        "zipkin:9411"
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "editor.renderWhitespace": "all",
+                "editor.formatOnSave": true,
+                "remote.autoForwardPorts": false,
+                "python.languageServer": "Pylance",
+                "python.analysis.diagnosticMode": "workspace",
+                "python.analysis.typeCheckingMode": "strict",
+                "python.analysis.completeFunctionParens": true,
+                "python.analysis.autoImportCompletions": true,
+                "[python]": {
+                    "editor.tabSize": 4,
+                    "editor.defaultFormatter": "charliermarsh.ruff",
+                    "editor.codeActionsOnSave": {
+                        "source.fixAll": "explicit",
+                        "source.organizeImports": "explicit"
+                    }
+                }
+            },
+            "extensions": [
+                "ms-python.python",
+                "charliermarsh.ruff",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    },
+    "postCreateCommand": "echo 'DevContainer is ready!'"
+}
