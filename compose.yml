@@ -10,7 +10,7 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     networks:
@@ -21,8 +21,6 @@ services:
     volumes:
       - chroma_data:/data
       - ./config.yaml:/config.yaml
-    ports:
-      - "8000:8000"
     networks:
       - internal
     environment:
@@ -31,6 +29,19 @@ services:
     depends_on:
       - otel-collector
       - zipkin
+
+  nginx:
+    image: nginx:alpine
+    container_name: chroma-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./htpasswd:/etc/nginx/.htpasswd:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - chroma
+    networks:
+      - internal
 
   workspace:
     build:
@@ -48,6 +59,7 @@ services:
 
 networks:
   internal:
+
 
 volumes:
   chroma_data:
