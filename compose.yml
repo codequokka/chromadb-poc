@@ -1,36 +1,85 @@
+---
 services:
+  fluentd:
+    image: fluent/fluentd:v1.16-1
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+      - ./fluentd/log:/fluentd/log
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    logging:
+      driver: "json-file"
+
   zipkin:
     image: openzipkin/zipkin
     ports:
       - "9411:9411"
     depends_on:
       - otel-collector
+      - fluentd
     networks:
       - internal
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: zipkin
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     networks:
       - internal
+    depends_on:
+      - fluentd
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: otel-collector
 
   chroma:
     image: chromadb/chroma
     volumes:
       - chroma_data:/data
       - ./config.yaml:/config.yaml
-    ports:
-      - "8000:8000"
     networks:
       - internal
     environment:
       - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-collector:4317/
       - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chroma
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: chroma
     depends_on:
       - otel-collector
       - zipkin
+      - fluentd
+
+  nginx:
+    image: nginx:alpine
+    container_name: chroma-proxy
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./htpasswd:/etc/nginx/.htpasswd:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - chroma
+      - fluentd
+    networks:
+      - internal
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: nginx
 
   workspace:
     build:
@@ -48,6 +97,7 @@ services:
 
 networks:
   internal:
+
 
 volumes:
   chroma_data:
