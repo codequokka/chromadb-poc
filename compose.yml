@@ -1,12 +1,31 @@
+---
 services:
+  fluentd:
+    image: fluent/fluentd:v1.16-1
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+      - ./fluentd/log:/fluentd/log
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    logging:
+      driver: "json-file"
+
   zipkin:
     image: openzipkin/zipkin
     ports:
       - "9411:9411"
     depends_on:
       - otel-collector
+      - fluentd
     networks:
       - internal
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: zipkin
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.111.0
@@ -15,6 +34,13 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
     networks:
       - internal
+    depends_on:
+      - fluentd
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: otel-collector
 
   chroma:
     image: chromadb/chroma
@@ -26,9 +52,15 @@ services:
     environment:
       - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-collector:4317/
       - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chroma
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: chroma
     depends_on:
       - otel-collector
       - zipkin
+      - fluentd
 
   nginx:
     image: nginx:alpine
@@ -40,8 +72,14 @@ services:
       - "8080:80"
     depends_on:
       - chroma
+      - fluentd
     networks:
       - internal
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: fluentd:24224
+        tag: nginx
 
   workspace:
     build:
